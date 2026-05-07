@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>ClipAI</title>
+<style>
+body{font-family:Arial;background:#0f0f0f;color:white;display:flex;justify-content:center;align-items:center;min-height:100vh;}
+.box{background:#1a1a1a;padding:40px;border-radius:20px;width:580px;}
+h1{color:#ff0064;text-align:center;margin-bottom:10px;}
+p{color:#888;text-align:center;margin-bottom:25px;}
+input{width:100%;padding:14px;border-radius:10px;border:2px solid #333;background:#111;color:white;font-size:1rem;margin-bottom:15px;}
+button{width:100%;padding:14px;background:#ff0064;color:white;border:none;border-radius:10px;font-size:1rem;cursor:pointer;font-weight:bold;}
+button:disabled{background:#555;}
+#status{margin-top:20px;padding:15px;background:#111;border-radius:10px;text-align:center;display:none;}
+#clips{margin-top:20px;display:none;}
+.item{background:#111;padding:15px;border-radius:10px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
+a.dl{background:#00c853;padding:8px 18px;border-radius:8px;color:white;text-decoration:none;font-weight:bold;}
+</style>
+</head>
+<body>
+<div class="box">
+<h1>ClipAI</h1>
+<p>Paste YouTube URL and get best short clips!</p>
+<input id="url" placeholder="Paste YouTube URL here...">
+<button id="btn" onclick="go()">Generate Clips</button>
+<div id="status"></div>
+<div id="clips"></div>
+</div>
+<script>
+let t;
+async function go(){
+let url=document.getElementById('url').value;
+if(!url){alert('Paste a URL!');return;}
+document.getElementById('btn').disabled=true;
+document.getElementById('status').style.display='block';
+document.getElementById('status').innerText='Starting...';
+document.getElementById('clips').style.display='none';
+await fetch('/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:url})});
+t=setInterval(check,2000);}
+async function check(){
+let r=await fetch('/status');
+let d=await r.json();
+document.getElementById('status').innerText=d.message;
+if(d.done){clearInterval(t);
+document.getElementById('btn').disabled=false;
+if(d.clips.length>0){
+document.getElementById('clips').style.display='block';
+let h='';
+d.clips.forEach((c,i)=>{h+='<div class="item"><span>Clip '+(i+1)+'</span><a class="dl" href="/download/'+c+'" download>Download</a></div>';});
+document.getElementById('clips').innerHTML=h;}}}
+</script>
+</body>
+</html>
