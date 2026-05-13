@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request, jsonify, send_file
 import yt_dlp
-import whisper
 import subprocess
 import os
 import glob
@@ -17,6 +16,7 @@ status = {"message": "Ready!", "done": False, "clips": []}
 def process_video(url):
     global status
     try:
+        # Clean old files
         status["message"] = "🗑️ Cleaning old clips..."
         status["clips"] = []
         for f in glob.glob("/home/babu/clipai/clip*.mp4"):
@@ -24,16 +24,27 @@ def process_video(url):
         if os.path.exists("/home/babu/clipai/video.mp4"):
             os.remove("/home/babu/clipai/video.mp4")
 
+        # Download video
         status["message"] = "⬇️ Downloading video..."
         ydl_opts = {'format': 'best', 'outtmpl': '/home/babu/clipai/video.mp4'}
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
 
-        status["message"] = "🎙️ Transcribing video..."
-        model = whisper.load_model("base")
-        result = model.transcribe("/home/babu/clipai/video.mp4")
-        text = result["text"]
+        # Extract audio for transcription
+        status["message"] = "🎵 Extracting audio..."
+        subprocess.run("ffmpeg -i /home/babu/clipai/video.mp4 -ar 16000 -ac 1 -c:a pcm_s16le /home/babu/clipai/audio.wav -y", shell=True)
 
+        # Transcribe with Groq
+        status["message"] = "🎙️ Transcribing video..."
+        with open("/home/babu/clipai/audio.wav", "rb") as f:
+            transcription = client.audio.transcriptions.create(
+                file=("audio.wav", f.read()),
+                model="whisper-large-v3",
+                response_format="verbose_json",
+            )
+        text = transcription.text
+
+        # Find best moments
         status["message"] = "🧠 Finding best moments..."
         prompt = f"""
         You are a viral video expert.
@@ -51,6 +62,7 @@ def process_video(url):
         )
         groq_output = response.choices[0].message.content
 
+        # Cut clips
         status["message"] = "✂️ Cutting clips..."
         lines = groq_output.strip().split("\n")
         clip_num = 1

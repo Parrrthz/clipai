@@ -1,4 +1,0 @@
-flask
-groq
-yt-dlp
-openai-whisper
